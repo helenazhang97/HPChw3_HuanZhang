@@ -1,0 +1,85 @@
+1.(a)Suppose n is odd. The threads are forced to synchronize at the end of each #pragma omp for loop, so the time spent by each thread would be decided by the longest one. In each loop, with schedule(static) we split the total n iterations into two threads, 1,...(n-1)/2 and (n-1)/2+1,...,n-1. So the time spent is respectively 1+2+...+(n-1)/2=(n^2-1)/8 ms and (n-1)/2+1+(n-1)/2+2+...+n-1=(3n^2-4n+1)/8 ms, so the time spent on waiting for the other thread is (n-1)^2/4, and in total we have two pragma loops so the total time to exedute the parallel region would be doubled into (3n^2-4n+1)4 ms and the time spent on waiting for the other thread is (n-1)^2/2.
+(b) With (static,1) we know the 1,3,5,...,n-2 is distributed to one thread and 2,4,6,...,n-1 is distributed to the other. So in each #pragma loop, the time the first thread spent is 1+3+5+...+n-2=(n-1)^2/4 ms, and the time the second thread spent is 2+4+6+...+n-1=(n^2-1)/4 ms. The time spent on waiting for the other is (n-1)/2 ms. So in total we double the result and thus the time spent to execute the parallel region is (n^2-1)/2 ms, and the time spent on waiting for the other is (n-1) ms. The time wasted is much less!
+(c)With dynamic the next iteration is automatically distributed to the freed thread, so if n is very big, the time caused by work imbalance could be neglected. The expected result is that it will improve compared to static, and it should perform as well as, if no better than, (static,1). But it is not expected to improve much from (static,1) since it has been well distributed in a balanced way where the time spent on waiting is one order less than executing time.
+(d)Yes, we could use #pragma omp for nowait. By using that, the thread that finished first could be arranged to do the first chunk and by construction we have exchange the work load. In this case, the one that does less work in first for loop is going to do more work in the second, so we have perfect work balance and theoritically no time is wasted on waiting for each other. The total time would be 1+2+3+...+(n-1)=(n-1)n/2 ms.
+
+2. see code.
+3. I was running it on crunchy1.cims.nyu.edu,  a  processor  with  4  physical  CPUs,  each  with  8  physical  cores(16  logical  cores  with  hyperthreading  available),  each  CPU  is  AMDOpteron(TM) Processor 6272, cpu MHz is 2099.972MHz, cache size is 2048KB(sharedby 16 logical cores). 
+
+4 threads executing iteration
+sequential-scan = 0.892864s
+parallel-scan   = 0.603281s
+
+8 threads executing iteration
+sequential-scan = 0.875107s
+parallel-scan   = 0.418364s
+
+16 threads executing iteration
+sequential-scan = 0.863272s
+parallel-scan   = 0.577029s
+
+32 threads executing iteration
+sequential-scan = 0.897068s
+parallel-scan   = 0.428726s
+We can see that the time takes decrease when we increase from 4 to 8, but when we use more threads, the performance is sort of unpredictable. Part of the reason may be that we only have 8 physical cores and when we are split it into even more cores, we are not actually putting more computation resource into it.
+
+4. (a) I tried 4 and 8 threads for Jacobi iteration when N=9, and output the solved u. I found they are the same.
+The solved u for thread = 4: 
+[0 0 0 0 0 0 0 0 0 0 0 0 0.0128126 0.0206253 0.0253959 0.027998 0.0288268 0.027998 0.0253959 0.0206253 0.0128126 0 0 0.0206253 0.0342929 0.0429606 0.0477696 0.0493115 0.0477696 0.0429606 0.0342929 0.0206253 0 0 0.0253959 0.0429606 0.0543845 0.0608087 0.0628805 0.0608087 0.0543845 0.0429606 0.0253959 0 0 0.027998 0.0477696 0.0608087 0.0682011 0.0705939 0.0682011 0.0608087 0.0477696 0.027998 0 0 0.0288268 0.0493115 0.0628805 0.0705939 0.0730936 0.0705939 0.0628805 0.0493115 0.0288268 0 0 0.027998 0.0477696 0.0608087 0.0682011 0.0705939 0.0682011 0.0608087 0.0477696 0.027998 0 0 0.0253959 0.0429606 0.0543845 0.0608087 0.0628805 0.0608087 0.0543845 0.0429606 0.0253959 0 0 0.0206253 0.0342929 0.0429606 0.0477696 0.0493115 0.0477696 0.0429606 0.0342929 0.0206253 0 0 0.0128126 0.0206253 0.0253959 0.027998 0.0288268 0.027998 0.0253959 0.0206253 0.0128126 0 0 0 0 0 0 0 0 0 0 0 0 ]
+The solved u for thread = 8: 
+[0 0 0 0 0 0 0 0 0 0 0 0 0.0128126 0.0206253 0.0253959 0.027998 0.0288268 0.027998 0.0253959 0.0206253 0.0128126 0 0 0.0206253 0.0342929 0.0429606 0.0477696 0.0493115 0.0477696 0.0429606 0.0342929 0.0206253 0 0 0.0253959 0.0429606 0.0543845 0.0608087 0.0628805 0.0608087 0.0543845 0.0429606 0.0253959 0 0 0.027998 0.0477696 0.0608087 0.0682011 0.0705939 0.0682011 0.0608087 0.0477696 0.027998 0 0 0.0288268 0.0493115 0.0628805 0.0705939 0.0730936 0.0705939 0.0628805 0.0493115 0.0288268 0 0 0.027998 0.0477696 0.0608087 0.0682011 0.0705939 0.0682011 0.0608087 0.0477696 0.027998 0 0 0.0253959 0.0429606 0.0543845 0.0608087 0.0628805 0.0608087 0.0543845 0.0429606 0.0253959 0 0 0.0206253 0.0342929 0.0429606 0.0477696 0.0493115 0.0477696 0.0429606 0.0342929 0.0206253 0 0 0.0128126 0.0206253 0.0253959 0.027998 0.0288268 0.027998 0.0253959 0.0206253 0.0128126 0 0 0 0 0 0 0 0 0 0 0 0 ]
+
+I tried 4 and 8 threads for Gauss-Seidel iteration when N=9, and output the solved u. I found they are the same.
+The solved u for thread = 4: 
+[0 0 0 0 0 0 0 0 0 0 0 0 0.0128129 0.0206258 0.0253966 0.0279988 0.0288276 0.0279988 0.0253966 0.0206258 0.0128129 0 0 0.0206258 0.0342938 0.0429619 0.047771 0.049313 0.047771 0.0429619 0.0342938 0.0206258 0 0 0.0253966 0.0429619 0.0543862 0.0608108 0.0628826 0.0608108 0.0543862 0.0429619 0.0253966 0 0 0.0279988 0.047771 0.0608108 0.0682034 0.0705964 0.0682034 0.0608108 0.047771 0.0279988 0 0 0.0288276 0.049313 0.0628826 0.0705964 0.0730962 0.0705964 0.0628826 0.049313 0.0288276 0 0 0.0279988 0.047771 0.0608108 0.0682034 0.0705964 0.0682034 0.0608108 0.047771 0.0279988 0 0 0.0253966 0.0429619 0.0543862 0.0608108 0.0628826 0.0608108 0.0543862 0.0429619 0.0253966 0 0 0.0206258 0.0342938 0.0429619 0.047771 0.049313 0.047771 0.0429619 0.0342938 0.0206258 0 0 0.0128129 0.0206258 0.0253966 0.0279988 0.0288276 0.0279988 0.0253966 0.0206258 0.0128129 0 0 0 0 0 0 0 0 0 0 0 0 ]
+The solved u for thread = 8: 
+[0 0 0 0 0 0 0 0 0 0 0 0 0.0128129 0.0206258 0.0253966 0.0279988 0.0288276 0.0279988 0.0253966 0.0206258 0.0128129 0 0 0.0206258 0.0342938 0.0429619 0.047771 0.049313 0.047771 0.0429619 0.0342938 0.0206258 0 0 0.0253966 0.0429619 0.0543862 0.0608108 0.0628826 0.0608108 0.0543862 0.0429619 0.0253966 0 0 0.0279988 0.047771 0.0608108 0.0682034 0.0705964 0.0682034 0.0608108 0.047771 0.0279988 0 0 0.0288276 0.049313 0.0628826 0.0705964 0.0730962 0.0705964 0.0628826 0.049313 0.0288276 0 0 0.0279988 0.047771 0.0608108 0.0682034 0.0705964 0.0682034 0.0608108 0.047771 0.0279988 0 0 0.0253966 0.0429619 0.0543862 0.0608108 0.0628826 0.0608108 0.0543862 0.0429619 0.0253966 0 0 0.0206258 0.0342938 0.0429619 0.047771 0.049313 0.047771 0.0429619 0.0342938 0.0206258 0 0 0.0128129 0.0206258 0.0253966 0.0279988 0.0288276 0.0279988 0.0253966 0.0206258 0.0128129 0 0 0 0 0 0 0 0 0 0 0 0] 
+
+(b)
+Jacobi iteration timings for different N and different number of threads with maxnstep=50000
+Here I fixed the maxnstep, and I observe that Jacobi iteration is converging very slowly with large N, actually more than 7e4 iterations for N=199, and for N=399 it takes very long to converge, actually I killed the process halfway.
+
+N=99,  thread number p = 2,  time = 3.458604s
+N=99,  thread number p = 4,  time = 2.787832s
+N=99,  thread number p = 8,  time = 2.791162s
+N=99,  thread number p = 16, time = 4.020980s
+N=99,  thread number p = 32, time = 7.490915s
+
+N=199, thread number p = 2,  time = 21.174584s
+N=199, thread number p = 4,  time = 14.956576s
+N=199, thread number p = 8,  time = 10.996776s
+N=199, thread number p = 16, time = 8.185456s
+N=199, thread number p = 32, time = 9.593210s
+
+N=399, thread number p = 2,  time = 83.249898s
+N=399, thread number p = 4,  time = 54.192267s
+N=399, thread number p = 8,  time = 36.634638s
+N=399, thread number p = 16, time = 26.417262s
+N=399, thread number p = 32, time = 32.687310s
+I was running it on crunchy1.cims.nyu.edu,  a  processor  with  4  physical  CPUs,  each  with  8  physical  cores(16  logical  cores  with  hyperthreading  available),  each  CPU  is  AMDOpteron(TM) Processor 6272, cpu MHz is 2099.972MHz, cache size is 2048KB(sharedby 16 logical cores). 
+We can see from the timing when we increase the number of threads from 2-16 the timing decreases dramatically, but more than 16 threads does not seem to be helpful(it even makes running a bit slower).
+
+Gauss-Seidel iteration timings for different N and different number of threads with maxnstep=50000
+Here I fixed the maxnstep, and I observe that Jacobi iteration is converging slowly with large N, but faster than Jacobi iteration. It spent  4.2e4 iterations for N=199, and 1.7e5 for N=399.
+
+
+N=99,  thread number p = 2,  time = 2.347203s
+N=99,  thread number p = 4,  time = 1.915982s
+N=99,  thread number p = 8,  time = 2.104319s
+N=99,  thread number p = 16, time = 3.629649s
+N=99,  thread number p = 32, time = 8.675267s
+
+N=199, thread number p = 2,  time = 7.191294s
+N=199, thread number p = 4,  time = 4.544708s
+N=199, thread number p = 8,  time = 3.484984s
+N=199, thread number p = 16, time = 4.102260s
+N=199, thread number p = 32, time = 8.966680s
+
+N=399, thread number p = 2,  time = 26.820427s
+N=399, thread number p = 4,  time = 13.965318s
+N=399, thread number p = 8,  time = 8.434652s
+N=399, thread number p = 16, time = 7.490213s
+N=399, thread number p = 32, time = 12.695081s
+
+We can see from the timing when we increase the number of threads from 2-16 the timing decreases dramatically, but more than 16 threads does not seem to be helpful(it even makes running a bit slower). Gauss-Seidel in my implementation is much faster than Jacobi, it may be caused by seperated updating(I not only separate red and black points but also seperate odd and even index with in each color to make indices easier to code), but I did not find really convincing reason that makes G-S much faster than Jacobi when using same number of threads. I have checked for N=99, where Jacobi and Gauss-Seidel's results match up to an error of 1.2e-4.
+
